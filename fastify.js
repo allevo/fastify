@@ -109,6 +109,8 @@ function build (options) {
   // fake http injection (for testing purposes)
   fastify.inject = inject
 
+  fastify.version = require('./package.json').version
+
   return fastify
 
   function fastify (req, res) {
