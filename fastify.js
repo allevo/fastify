@@ -105,6 +105,9 @@ function build (options) {
 
   // expose logger instance
   fastify.logger = logger
+  server.logger = logger
+  server.now = now
+  server.genReqId = genReqId
 
   // hooks
   fastify.addHook = addHook
@@ -153,12 +156,12 @@ function build (options) {
   return fastify
 
   function fastify (req, res) {
-    req.id = genReqId(req)
-    req.log = res.log = logger.child({ reqId: req.id })
+    req.id = this.genReqId(req)
+    req.log = res.log = this.logger.child({ reqId: req.id })
 
     req.log.info({ req }, 'incoming request')
 
-    res._startTime = now()
+    res._startTime = this.now()
     res._context = null
     res.on('finish', onResFinished)
     res.on('error', onResFinished)
@@ -496,6 +499,7 @@ function build (options) {
   }
 
   function inject (opts, cb) {
+    opts.server = server
     if (started) {
       return lightMyRequest(this, opts, cb)
     }
