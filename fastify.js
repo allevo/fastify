@@ -22,6 +22,22 @@ const ContentTypeParser = require('./lib/ContentTypeParser')
 const Hooks = require('./lib/hooks')
 const loggerUtils = require('./lib/logger')
 
+function Fastify () {
+  return function fastify (req, res) {
+    req.id = this.genReqId(req)
+    req.log = res.log = this.logger.child({ reqId: req.id })
+
+    req.log.info({ req }, 'incoming request')
+
+    res._startTime = this.now()
+    res._context = null
+    res.on('finish', this.onResFinished)
+    res.on('error', this.onResFinished)
+
+    this.router.lookup(req, res)
+  }
+}
+
 function build (options) {
   options = options || {}
   if (typeof options !== 'object') {
@@ -53,6 +69,8 @@ function build (options) {
   const OnResponseState = loggerUtils.OnResponseState
   const onResponseIterator = loggerUtils.onResponseIterator
   const onResponseCallback = loggerUtils.onResponseCallback
+
+  const fastify = Fastify()
 
   const app = avvio(fastify, {})
   // Override to allow the plugin incapsulation
@@ -108,6 +126,8 @@ function build (options) {
   server.logger = logger
   server.now = now
   server.genReqId = genReqId
+  server.onResFinished = onResFinished
+  server.router = router
 
   // hooks
   fastify.addHook = addHook
@@ -154,20 +174,6 @@ function build (options) {
   fastify.setErrorHandler = setErrorHandler
 
   return fastify
-
-  function fastify (req, res) {
-    req.id = this.genReqId(req)
-    req.log = res.log = this.logger.child({ reqId: req.id })
-
-    req.log.info({ req }, 'incoming request')
-
-    res._startTime = this.now()
-    res._context = null
-    res.on('finish', onResFinished)
-    res.on('error', onResFinished)
-
-    router.lookup(req, res)
-  }
 
   function onResFinished (err) {
     this.removeListener('finish', onResFinished)
